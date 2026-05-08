@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Flip Timer">
+<title>Flip Timer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:#111;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;}
+#app{height:100vh;background:#111;position:relative;overflow:hidden;cursor:pointer;user-select:none;}
+
+.stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+
+.task-name{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.28);font-weight:300;}
+
+.flip-row{display:flex;align-items:center;gap:14px;}
+.colon{font-size:56px;font-weight:200;color:rgba(255,255,255,0.22);line-height:1;padding-bottom:8px;}
+
+.card{position:relative;width:110px;height:130px;perspective:600px;}
+.half{position:absolute;left:0;width:100%;height:65px;background:#1e1e1e;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;}
+.half.top{top:0;border-radius:10px 10px 0 0;border-bottom:2px solid #111;}
+.half.bot{top:65px;border-radius:0 0 10px 10px;align-items:flex-start;}
+.half span{font-size:96px;font-weight:100;color:#fff;line-height:.68;letter-spacing:-4px;font-variant-numeric:tabular-nums;}
+.half.bot span{line-height:0;transform:translateY(-65px);}
+
+.flap{position:absolute;top:0;left:0;width:100%;height:65px;transform-origin:50% 100%;transform-style:preserve-3d;border-radius:10px 10px 0 0;pointer-events:none;z-index:5;}
+.flap-f,.flap-b{position:absolute;inset:0;border-radius:10px 10px 0 0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;}
+.flap-f{background:#1e1e1e;}
+.flap-b{background:#181818;transform:rotateX(180deg);}
+.flap-f span,.flap-b span{font-size:96px;font-weight:100;color:#fff;line-height:.68;letter-spacing:-4px;font-variant-numeric:tabular-nums;}
+.flap-b span{transform:scaleY(-1) translateY(5px);color:#999;}
+
+@keyframes flipIt{
+  0%{transform:rotateX(0deg);}
+  100%{transform:rotateX(-180deg);}
+}
+.flap.go{animation:flipIt .28s cubic-bezier(.4,0,.6,1) forwards;}
+
+.sub-row{display:flex;align-items:center;gap:7px;}
+.sub-dot{width:6px;height:6px;border-radius:50%;transition:background .5s;}
+.sub-text{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.2);font-weight:300;}
+
+.progress-bar{width:180px;height:2px;background:rgba(255,255,255,0.07);border-radius:1px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:1px;transition:width 1s linear,background .5s;}
+
+.hint{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.1);pointer-events:none;transition:opacity .3s;}
+
+/* Overlay panel */
+.overlay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:#141414;transition:transform .38s cubic-bezier(.4,0,.6,1);transform:translateY(100%);}
+.overlay.open{transform:translateY(0);}
+.overlay-handle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:14px auto 18px;}
+.overlay-title{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,0.25);text-align:center;margin-bottom:14px;}
+
+.slist{flex:1;overflow-y:auto;padding:0 18px;}
+.srow{display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:11px;cursor:pointer;transition:background .15s;margin-bottom:3px;}
+.srow.act{background:rgba(255,255,255,0.07);}
+.srow.done{opacity:.28;}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.sname{flex:1;font-size:14px;color:rgba(255,255,255,0.75);font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.srem{font-size:11px;color:rgba(255,255,255,0.3);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.sbar{height:2px;border-radius:1px;margin-top:4px;background:rgba(255,255,255,0.07);}
+.sbar-fill{height:100%;border-radius:1px;transition:width 1s linear;}
+
+.ctrl-row{display:flex;gap:14px;justify-content:center;padding:18px 16px 10px;}
+.cbtn{background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.14);border-radius:50%;width:56px;height:56px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:white;transition:background .15s;}
+.cbtn:active{background:rgba(255,255,255,0.18);}
+.cbtn.main{width:68px;height:68px;font-size:24px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.22);}
+
+.add-row{display:flex;gap:8px;padding:8px 18px 40px;}
+.add-row input{flex:1;background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.12);border-radius:11px;padding:10px 13px;color:white;font-size:14px;outline:none;font-weight:300;-webkit-appearance:none;}
+.add-row input::placeholder{color:rgba(255,255,255,0.2);}
+.add-row input:focus{border-color:rgba(255,255,255,0.3);}
+.mins{width:62px;flex:none;}
+.gobtn{background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.18);border-radius:11px;padding:10px 16px;color:white;font-size:16px;cursor:pointer;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="stage">
+    <div class="task-name" id="tname">—</div>
+
+    <div class="flip-row">
+      <div class="card">
+        <div class="half top"><span id="top-m">00</span></div>
+        <div class="half bot"><span id="bot-m">00</span></div>
+        <div class="flap" id="flap-m">
+          <div class="flap-f"><span id="ff-m">00</span></div>
+          <div class="flap-b"><span id="fb-m">00</span></div>
+        </div>
+      </div>
+      <div class="colon">:</div>
+      <div class="card">
+        <div class="half top"><span id="top-s">00</span></div>
+        <div class="half bot"><span id="bot-s">00</span></div>
+        <div class="flap" id="flap-s">
+          <div class="flap-f"><span id="ff-s">00</span></div>
+          <div class="flap-b"><span id="fb-s">00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-row">
+      <div class="sub-dot" id="sub-dot"></div>
+      <div class="sub-text" id="sub-text">remaining</div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="prog" style="width:100%"></div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">tap to pause · swipe up for schedule</div>
+
+  <div class="overlay" id="overlay">
+    <div class="overlay-handle"></div>
+    <div class="overlay-title">schedule</div>
+    <div class="slist" id="slist"></div>
+    <div class="ctrl-row">
+      <button class="cbtn" onclick="resetAll();event.stopPropagation()">↺</button>
+      <button class="cbtn main" id="pbtn" onclick="togglePause();event.stopPropagation()">⏸</button>
+      <button class="cbtn" onclick="skipBlock();event.stopPropagation()">⏭</button>
+    </div>
+    <div class="add-row" onclick="event.stopPropagation()">
+      <input id="tIn" placeholder="Add a task…"/>
+      <input id="mIn" type="number" min="1" max="999" placeholder="min" class="mins"/>
+      <button class="gobtn" onclick="addTask()">+</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let blocks=[
+  {name:'Morning stretch',mins:10,color:'#ff9500'},
+  {name:'Deep work',mins:90,color:'#bf5af2'},
+  {name:'Lunch break',mins:30,color:'#30d158'},
+  {name:'Team meeting',mins:45,color:'#0a84ff'},
+  {name:'Focus session',mins:60,color:'#ff375f'}
+];
+let cur=0,elapsed=0,paused=false,lastTs=null,overlayOpen=false;
+let dM=-1,dS=-1,touchStartY=0;
+
+function pad(n){return String(n).padStart(2,'0');}
+
+function doFlip(id,nv){
+  const flap=document.getElementById('flap-'+id);
+  const top=document.getElementById('top-'+id);
+  const bot=document.getElementById('bot-'+id);
+  const ff=document.getElementById('ff-'+id);
+  const fb=document.getElementById('fb-'+id);
+  ff.textContent=top.textContent;
+  fb.textContent=nv;
+  top.textContent=nv;
+  flap.classList.remove('go');
+  void flap.offsetWidth;
+  flap.classList.add('go');
+  setTimeout(()=>{bot.textContent=nv;},280);
+}
+
+function setDig(m,s){
+  const ms=pad(m),ss=pad(s);
+  if(ms!==pad(dM)){doFlip('m',ms);dM=m;}
+  if(ss!==pad(dS)){doFlip('s',ss);dS=s;}
+}
+
+function renderList(){
+  document.getElementById('slist').innerHTML=blocks.map((b,i)=>{
+    const rem=i===cur?Math.max(0,b.mins*60-Math.floor(elapsed)):b.mins*60;
+    const pct=i===cur?Math.min(100,(elapsed/(b.mins*60))*100).toFixed(1):i<cur?100:0;
+    const m=Math.floor(rem/60),s=rem%60;
+    return`<div class="srow ${i===cur?'act':''} ${i<cur?'done':''}" onclick="jumpTo(${i});event.stopPropagation()">
+      <div class="sdot" style="background:${b.color}"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="sname">${b.name}</div>
+          <div class="srem">${i<cur?'✓':`${pad(m)}:${pad(s)}`}</div>
+        </div>
+        <div class="sbar"><div class="sbar-fill" style="width:${pct}%;background:${b.color}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function frame(ts){
+  if(!paused&&lastTs!==null){
+    const dt=Math.min((ts-lastTs)/1000,2);
+    elapsed+=dt;
+    if(blocks[cur]&&elapsed>=blocks[cur].mins*60){
+      elapsed=0;cur=(cur+1)%blocks.length;dM=-1;dS=-1;
+    }
+  }
+  lastTs=ts;
+  const b=blocks[cur];
+  if(b){
+    const rem=Math.max(0,Math.floor(b.mins*60-elapsed));
+    setDig(Math.floor(rem/60),rem%60);
+    document.getElementById('tname').textContent=b.name;
+    document.getElementById('sub-dot').style.background=b.color;
+    document.getElementById('prog').style.width=(Math.max(0,1-elapsed/(b.mins*60))*100).toFixed(1)+'%';
+    document.getElementById('prog').style.background=b.color;
+  }
+  renderList();
+  requestAnimationFrame(frame);
+}
+
+function handleTap(){
+  if(overlayOpen){closeOverlay();return;}
+  togglePause();
+}
+
+function openOverlay(){
+  overlayOpen=true;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('hint').style.opacity='0';
+}
+function closeOverlay(){
+  overlayOpen=false;
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('hint').style.opacity='1';
+}
+
+document.getElementById('app').addEventListener('click',handleTap);
+document.getElementById('overlay').addEventListener('click',e=>e.stopPropagation());
+
+document.getElementById('app').addEventListener('touchstart',e=>{
+  touchStartY=e.touches[0].clientY;
+},{passive:true});
+
+document.getElementById('app').addEventListener('touchend',e=>{
+  const dy=touchStartY-e.changedTouches[0].clientY;
+  if(dy>50&&!overlayOpen){openOverlay();}
+  else if(dy<-50&&overlayOpen){closeOverlay();}
+},{passive:true});
+
+function togglePause(){
+  paused=!paused;lastTs=null;
+  document.getElementById('pbtn').textContent=paused?'▶':'⏸';
+}
+function skipBlock(){elapsed=0;cur=(cur+1)%blocks.length;dM=-1;dS=-1;}
+function jumpTo(i){cur=i;elapsed=0;dM=-1;dS=-1;closeOverlay();}
+function resetAll(){cur=0;elapsed=0;paused=false;lastTs=null;dM=-1;dS=-1;document.getElementById('pbtn').textContent='⏸';}
+function addTask(){
+  const n=document.getElementById('tIn').value.trim();
+  const m=parseInt(document.getElementById('mIn').value);
+  if(!n||!m||m<1)return;
+  const cols=['#ff9500','#bf5af2','#30d158','#0a84ff','#ff375f','#ffd60a','#5ac8fa','#ff6b6b'];
+  blocks.push({name:n,mins:m,color:cols[blocks.length%cols.length]});
+  document.getElementById('tIn').value='';
+  document.getElementById('mIn').value='';
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
